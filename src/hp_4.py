@@ -6,29 +6,50 @@ from collections import defaultdict
 
 
 def reformat_dates(old_dates):
-    """Accepts a list of date strings in format yyyy-mm-dd, re-formats each
-    element to a format dd mmm yyyy--01 Jan 2001."""
-    pass
+    reformatted_dates = []
+    for date in dates:
+        datetime_obj = datetime.strptime(date, '%Y-%m-%d')
+        reformatted_date = datetime.strftime(datetime_obj, '%d %b %Y')
+        reformatted_dates.append(reformatted_date)
+    return reformatted_dates
 
 
 def date_range(start, n):
-    """For input date string `start`, with format 'yyyy-mm-dd', returns
-    a list of of `n` datetime objects starting at `start` where each
-    element in the list is one day after the previous."""
-    pass
+    if not isinstance(start, str):
+        raise TypeError("start must be a string in 'yyyy-mm-dd' format")
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer")
+        
+    start_date = datetime.strptime(start, '%Y-%m-%d')
+    date_list = [start_date + timedelta(days=i) for i in range(n)]
+    return date_list
 
 
 def add_date_range(values, start_date):
-    """Adds a daily date range to the list `values` beginning with
-    `start_date`.  The date, value pairs are returned as tuples
-    in the returned list."""
-    pass
+    date_list = date_range(start_date, len(values))
+    result = [(date_list[i], values[i]) for i in range(len(values))]
+    return result
 
 
 def fees_report(infile, outfile):
-    """Calculates late fees per patron id and writes a summary report to
-    outfile."""
-    pass
+    late_fees = defaultdict(float)
+
+    with open(infile, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            date_returned = datetime.strptime(row['date_returned'], '%m/%d/%y')
+            date_due = datetime.strptime(row['date_due'], '%m/%d/%Y')
+            if date_returned > date_due:
+                days_late = (date_returned - date_due).days
+                late_fee = 0.25 * days_late
+                patron_id = row['patron_id']
+                late_fees[patron_id] += late_fee
+
+    with open(outfile, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['patron_id', 'late_fees'])
+        for patron_id, fees in late_fees.items():
+            writer.writerow([patron_id, f'{fees:.2f}'])
 
 
 # The following main selection block will only run when you choose
@@ -41,17 +62,19 @@ def fees_report(infile, outfile):
 if __name__ == '__main__':
     
     try:
-        from src.util import get_data_file_path
-    except ImportError:
-        from util import get_data_file_path
+        # Ensure csv module is available
+        import csv
+        
+        # Construct full file paths
+        data_dir = '/Users/sairaghavendra/Desktop/homework-project-4-sairaghavendra9/data'
+        BOOK_RETURNS_SHORT_PATH = f'{data_dir}/book_returns_short.csv'
+        OUTFILE = f'{data_dir}/book_fees.csv'
 
-    # BOOK_RETURNS_PATH = get_data_file_path('book_returns.csv')
-    BOOK_RETURNS_PATH = get_data_file_path('book_returns_short.csv')
-
-    OUTFILE = 'book_fees.csv'
-
-    fees_report(BOOK_RETURNS_PATH, OUTFILE)
-
-    # Print the data written to the outfile
-    with open(OUTFILE) as f:
-        print(f.read())
+        # Call fees_report function
+        fees_report(BOOK_RETURNS_SHORT_PATH, OUTFILE)
+        
+        print(f"Late fees report generated at: {OUTFILE}")
+    except FileNotFoundError:
+        print("Error: Input file not found. Please check the file path.")
+    except Exception as e:
+        print(f"Error occurred: {e}")
